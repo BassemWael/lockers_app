@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:lockerapp/components/elevatedbutton.dart';
+import 'package:lockerapp/components/textformfield.dart';
+import 'package:lockerapp/components/addlockerdialog.dart';
 import 'package:lockerapp/services/localization_services.dart';
 import 'package:lockerapp/services/themeprovider.dart';
 import 'package:provider/provider.dart';
@@ -96,46 +99,26 @@ class _HomescreenState extends State<Homescreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      width: inputWidth,
-                      child: TextFormField(
-                        controller: _iDController,
-                        decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.lockerId),
-                      ),
-                    ),
-                    SizedBox(
-                      width: inputWidth,
-                      child: TextFormField(
-                        controller: _locationController,
-                        decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.location),
-                      ),
-                    ),
-                    SizedBox(
-                      width: inputWidth,
-                      child: TextFormField(
-                        controller: _nocController,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.numberOfCells),
-                      ),
-                    ),
-                    SizedBox(
-                      width: inputWidth,
-                      child: TextFormField(
-                        controller: _resMController,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.reservationMode),
-                      ),
-                    ),
+                    buildTextFormField(_iDController,
+                        AppLocalizations.of(context)!.lockerId, inputWidth),
+                    buildTextFormField(_locationController,
+                        AppLocalizations.of(context)!.location, inputWidth),
+                    buildTextFormField(
+                        _nocController,
+                        AppLocalizations.of(context)!.numberOfCells,
+                        inputWidth),
+                    buildTextFormField(
+                        _resMController,
+                        AppLocalizations.of(context)!.reservationMode,
+                        inputWidth),
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ElevatedButton(
-                          onPressed: () {
+                        buildElevatedButton(
+                          context,
+                          AppLocalizations.of(context)!.saveLocker,
+                          () {
                             int? lockerId = int.tryParse(_iDController.text);
                             int? numOfCells = int.tryParse(_nocController.text);
                             int? resMode;
@@ -155,13 +138,15 @@ class _HomescreenState extends State<Homescreen> {
                                 resMode != null &&
                                 id != null) {
                               apiService.updateLocker(
-                                  id,
-                                  Locker(
-                                      lockerId: lockerId,
-                                      location: _locationController.text,
-                                      numOfCells: numOfCells,
-                                      reservationMode: resMode,
-                                      id: _IDController.text));
+                                id,
+                                Locker(
+                                  lockerId: lockerId,
+                                  location: _locationController.text,
+                                  numOfCells: numOfCells,
+                                  reservationMode: resMode,
+                                  id: _IDController.text,
+                                ),
+                              );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -170,21 +155,17 @@ class _HomescreenState extends State<Homescreen> {
                               );
                             }
                           },
-                          child: Text(
-                            AppLocalizations.of(context)!.saveLocker,
-                          ),
                         ),
-                        const SizedBox(width: 20),
-                        ElevatedButton(
-                          onPressed: () {
+                        SizedBox(width: 20),
+                        buildElevatedButton(
+                          context,
+                          AppLocalizations.of(context)!.delete,
+                          () {
                             int id = int.tryParse(_IDController.text)!;
                             setState(() {
                               apiService.deleteLocker(id);
                             });
                           },
-                          child: Text(
-                            AppLocalizations.of(context)!.delete,
-                          ),
                         ),
                       ],
                     ),
@@ -195,9 +176,7 @@ class _HomescreenState extends State<Homescreen> {
                           _lockers = apiService.getLockers();
                         });
                       },
-                      child: Text(
-                        AppLocalizations.of(context)!.scanNetwork,
-                      ),
+                      child: Text(AppLocalizations.of(context)!.scanNetwork),
                     ),
                   ],
                 ),
@@ -218,15 +197,9 @@ class _HomescreenState extends State<Homescreen> {
                         return ListView.builder(
                           itemCount: snapshot.data!.length,
                           itemBuilder: (context, index) {
-                            String? mode;
                             Locker locker = snapshot.data![index];
-                            if (locker.reservationMode == 1) {
-                              mode = "shared";
-                            } else if (locker.reservationMode == 2) {
-                              mode = "pre-assigned";
-                            } else {
-                              mode = "not provided";
-                            }
+                            String mode =
+                                _getReservationMode(locker.reservationMode);
                             return ListTile(
                               title: Text(
                                   '${AppLocalizations.of(context)!.lockerId} ${locker.lockerId}'),
@@ -236,11 +209,9 @@ class _HomescreenState extends State<Homescreen> {
                                 children: [
                                   Text(
                                       '${AppLocalizations.of(context)!.numberOfCells}: ${locker.numOfCells}'),
-                                  SizedBox(
-                                    height: 10,
-                                  ),
+                                  SizedBox(height: 10),
                                   Text(
-                                      '${AppLocalizations.of(context)!.reservationMode}: $mode')
+                                      '${AppLocalizations.of(context)!.reservationMode}: $mode'),
                                 ],
                               ),
                               onTap: () {
@@ -249,7 +220,7 @@ class _HomescreenState extends State<Homescreen> {
                                   _locationController.text =
                                       "${locker.location}";
                                   _nocController.text = "${locker.numOfCells}";
-                                  _resMController.text = mode as String;
+                                  _resMController.text = mode;
                                   _IDController.text = locker.id as String;
                                 });
                               },
@@ -266,128 +237,17 @@ class _HomescreenState extends State<Homescreen> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // Show the dialog box
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: Text(AppLocalizations.of(context)!.addLocker),
-                  content: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.6,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: inputWidth,
-                              child: TextFormField(
-                                controller: _iDController,
-                                decoration: InputDecoration(
-                                    labelText:
-                                        AppLocalizations.of(context)!.lockerId),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            SizedBox(
-                              width: inputWidth,
-                              child: TextFormField(
-                                controller: _locationController,
-                                decoration: InputDecoration(
-                                    labelText:
-                                        AppLocalizations.of(context)!.location),
-                              ),
-                            ),
-                            SizedBox(
-                              width: inputWidth,
-                              child: TextFormField(
-                                controller: _nocController,
-                                decoration: InputDecoration(
-                                    labelText: AppLocalizations.of(context)!
-                                        .numberOfCells),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            SizedBox(
-                              width: inputWidth,
-                              child: TextFormField(
-                                controller: _resMController,
-                                decoration: InputDecoration(
-                                    labelText: AppLocalizations.of(context)!
-                                        .reservationMode),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            SizedBox(
-                              width: inputWidth,
-                              child: TextFormField(
-                                controller: _IDController,
-                                decoration: InputDecoration(
-                                    labelText:
-                                        AppLocalizations.of(context)!.iD),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: () async {
-                                bool isValid = true;
-                                List<Locker> lockers =
-                                    await apiService.getLockers();
-                                for (var locker in lockers) {
-                                  if (locker.lockerId ==
-                                      int.tryParse(_iDController.text)) {
-                                    isValid = false;
-                                    break;
-                                  }
-                                }
-                                if (isValid) {
-                                  await apiService.addLocker(Locker(
-                                    lockerId: int.tryParse(_iDController.text),
-                                    location: _locationController.text,
-                                    numOfCells:
-                                        int.tryParse(_nocController.text),
-                                    reservationMode:
-                                        int.tryParse(_resMController.text),
-                                    id: _IDController.text,
-                                  ));
-                                  Navigator.of(context)
-                                      .pop(); // Close the dialog after adding
-                                } else {
-                                  // Show a message that locker ID is not unique
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            AppLocalizations.of(context)!
-                                                .lockerIdNotUnique)),
-                                  );
-                                }
-                              },
-                              child:
-                                  Text(AppLocalizations.of(context)!.addLocker),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      child: Text(AppLocalizations.of(context)!.close),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
+            showAddLockerDialog(
+                context,
+                inputWidth,
+                _iDController,
+                _locationController,
+                _nocController,
+                _resMController,
+                _IDController,
+                apiService);
           },
-          child: Icon(
-            Icons.add,
-          ),
+          child: Icon(Icons.add),
         ),
       );
     } else {
@@ -424,322 +284,190 @@ class _HomescreenState extends State<Homescreen> {
             ],
           ),
           body: Center(
-              child: Column(children: [
-            Text(
-              AppLocalizations.of(context)!.appTitle,
-              style: TextStyle(fontSize: 32),
-            ),
-            Row(
+            child: Column(
               children: [
-                Form(
-                  key: _formKey,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: inputwidthweb,
-                          child: TextFormField(
-                            controller: _iDController,
-                            decoration: InputDecoration(
-                                labelText:
-                                    AppLocalizations.of(context)!.lockerId),
-                          ),
-                        ),
-                        SizedBox(
-                          width: inputwidthweb,
-                          child: TextFormField(
-                            controller: _locationController,
-                            decoration: InputDecoration(
-                                labelText:
-                                    AppLocalizations.of(context)!.location),
-                          ),
-                        ),
-                        SizedBox(
-                          width: inputwidthweb,
-                          child: TextFormField(
-                            controller: _nocController,
-                            decoration: InputDecoration(
-                                labelText: AppLocalizations.of(context)!
-                                    .numberOfCells),
-                          ),
-                        ),
-                        SizedBox(
-                          width: inputwidthweb,
-                          child: TextFormField(
-                            controller: _resMController,
-                            decoration: InputDecoration(
-                                labelText: AppLocalizations.of(context)!
-                                    .reservationMode),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                Text(
+                  AppLocalizations.of(context)!.appTitle,
+                  style: TextStyle(fontSize: 32),
                 ),
-                Column(
+                Row(
                   children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        int? lockerId = int.tryParse(_iDController.text);
-                        int? numOfCells = int.tryParse(_nocController.text);
-                        int? resMode;
-                        if (_resMController.text.toLowerCase() == "shared") {
-                          resMode = 1;
-                        } else if (_resMController.text.toLowerCase() ==
-                            "pre-assigned") {
-                          resMode = 2;
-                        } else {
-                          resMode = 0;
-                        }
-                        int? id = int.tryParse(_IDController.text);
+                    Form(
+                      key: _formKey,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            buildTextFormField(
+                                _iDController,
+                                AppLocalizations.of(context)!.lockerId,
+                                inputwidthweb),
+                            buildTextFormField(
+                                _locationController,
+                                AppLocalizations.of(context)!.location,
+                                inputwidthweb),
+                            buildTextFormField(
+                                _nocController,
+                                AppLocalizations.of(context)!.numberOfCells,
+                                inputwidthweb),
+                            buildTextFormField(
+                                _resMController,
+                                AppLocalizations.of(context)!.reservationMode,
+                                inputwidthweb),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Column(
+                      children: [
+                        buildElevatedButton(
+                          context,
+                          AppLocalizations.of(context)!.saveLocker,
+                          () {
+                            int? lockerId = int.tryParse(_iDController.text);
+                            int? numOfCells = int.tryParse(_nocController.text);
+                            int? resMode;
+                            if (_resMController.text.toLowerCase() ==
+                                "shared") {
+                              resMode = 1;
+                            } else if (_resMController.text.toLowerCase() ==
+                                "pre-assigned") {
+                              resMode = 2;
+                            } else {
+                              resMode = 0;
+                            }
+                            int? id = int.tryParse(_IDController.text);
 
-                        if (lockerId != null &&
-                            numOfCells != null &&
-                            resMode != null &&
-                            id != null) {
-                          apiService.updateLocker(
-                              id,
-                              Locker(
+                            if (lockerId != null &&
+                                numOfCells != null &&
+                                resMode != null &&
+                                id != null) {
+                              apiService.updateLocker(
+                                id,
+                                Locker(
                                   lockerId: lockerId,
                                   location: _locationController.text,
                                   numOfCells: numOfCells,
                                   reservationMode: resMode,
-                                  id: _IDController.text));
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Please ensure all fields are filled correctly')),
-                          );
-                        }
-                      },
-                      child: Text(
-                        AppLocalizations.of(context)!.saveLocker,
-                      ),
+                                  id: _IDController.text,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Please ensure all fields are filled correctly')),
+                              );
+                            }
+                          },
+                        ),
+                        SizedBox(height: 20),
+                        buildElevatedButton(
+                          context,
+                          AppLocalizations.of(context)!.delete,
+                          () {
+                            int id = int.tryParse(_IDController.text)!;
+                            setState(() {
+                              apiService.deleteLocker(id);
+                            });
+                          },
+                        ),
+                        SizedBox(height: 20),
+                        buildElevatedButton(
+                          context,
+                          AppLocalizations.of(context)!.scanNetwork,
+                          () {
+                            setState(() {
+                              _lockers = apiService.getLockers();
+                            });
+                          },
+                        ),
+                      ],
                     ),
-                    SizedBox(
-                      height: 20,
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        int id = int.tryParse(_IDController.text)!;
-                        setState(() {
-                          apiService.deleteLocker(id);
-                        });
-                      },
-                      child: Text(
-                        AppLocalizations.of(context)!.delete,
-                      ),
-                    ),
-                    SizedBox(
-                      height: 20,
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _lockers = apiService.getLockers();
-                        });
-                      },
-                      child: Text(
-                        AppLocalizations.of(context)!.scanNetwork,
+                    Expanded(
+                      child: SizedBox(
+                        width: inputwidthweb,
+                        height: MediaQuery.of(context).size.height * 0.8,
+                        child: FutureBuilder<List<Locker>>(
+                          future: _lockers,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(child: CircularProgressIndicator());
+                            } else if (snapshot.hasError) {
+                              return Center(
+                                  child: Text('Error: ${snapshot.error}'));
+                            } else if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return Center(
+                                  child: Text('No lockers available'));
+                            } else {
+                              return ListView.builder(
+                                itemCount: snapshot.data!.length,
+                                itemBuilder: (context, index) {
+                                  String? mode;
+                                  Locker locker = snapshot.data![index];
+                                  if (locker.reservationMode == 1) {
+                                    mode = "shared";
+                                  } else if (locker.reservationMode == 2) {
+                                    mode = "pre-assigned";
+                                  } else {
+                                    mode = "not provided";
+                                  }
+                                  return ListTile(
+                                    title: Text(
+                                        '${AppLocalizations.of(context)!.lockerId} ${locker.lockerId}'),
+                                    subtitle: Text(
+                                        '${AppLocalizations.of(context)!.location}: ${locker.location}'),
+                                    trailing: Column(
+                                      children: [
+                                        Text(
+                                            '${AppLocalizations.of(context)!.numberOfCells}: ${locker.numOfCells}'),
+                                        SizedBox(height: 10),
+                                        Text(
+                                            '${AppLocalizations.of(context)!.reservationMode}: $mode')
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      setState(() {
+                                        _iDController.text =
+                                            "${locker.lockerId}";
+                                        _locationController.text =
+                                            "${locker.location}";
+                                        _nocController.text =
+                                            "${locker.numOfCells}";
+                                        _resMController.text = mode as String;
+                                        _IDController.text =
+                                            locker.id as String;
+                                      });
+                                    },
+                                  );
+                                },
+                              );
+                            }
+                          },
+                        ),
                       ),
                     ),
                   ],
-                ),
-                Expanded(
-                  child: SizedBox(
-                    width: inputwidthweb,
-                    height: MediaQuery.of(context).size.height * 0.8,
-                    child: FutureBuilder<List<Locker>>(
-                      future: _lockers,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Center(child: CircularProgressIndicator());
-                        } else if (snapshot.hasError) {
-                          return Center(
-                              child: Text('Error: ${snapshot.error}'));
-                        } else if (!snapshot.hasData ||
-                            snapshot.data!.isEmpty) {
-                          return Center(child: Text('No lockers available'));
-                        } else {
-                          return ListView.builder(
-                            itemCount: snapshot.data!.length,
-                            itemBuilder: (context, index) {
-                              String? mode;
-                              Locker locker = snapshot.data![index];
-                              if (locker.reservationMode == 1) {
-                                mode = "shared";
-                              } else if (locker.reservationMode == 2) {
-                                mode = "pre-assigned";
-                              } else {
-                                mode = "not provided";
-                              }
-                              return ListTile(
-                                title: Text(
-                                    '${AppLocalizations.of(context)!.lockerId} ${locker.lockerId}'),
-                                subtitle: Text(
-                                    '${AppLocalizations.of(context)!.location}: ${locker.location}'),
-                                trailing: Column(
-                                  children: [
-                                    Text(
-                                        '${AppLocalizations.of(context)!.numberOfCells}: ${locker.numOfCells}'),
-                                    SizedBox(
-                                      height: 10,
-                                    ),
-                                    Text(
-                                        '${AppLocalizations.of(context)!.reservationMode}: $mode')
-                                  ],
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    _iDController.text = "${locker.lockerId}";
-                                    _locationController.text =
-                                        "${locker.location}";
-                                    _nocController.text =
-                                        "${locker.numOfCells}";
-                                    _resMController.text = mode as String;
-                                    _IDController.text = locker.id as String;
-                                  });
-                                },
-                              );
-                            },
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ),
+                )
               ],
-            )
-          ])),
+            ),
+          ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              // Show the dialog box
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(AppLocalizations.of(context)!.addLocker),
-                    content: SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.6,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _iDController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .lockerId),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _locationController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .location),
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _nocController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .numberOfCells),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _resMController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .reservationMode),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _IDController,
-                                  decoration: InputDecoration(
-                                      labelText:
-                                          AppLocalizations.of(context)!.iD),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  bool isValid = true;
-                                  List<Locker> lockers =
-                                      await apiService.getLockers();
-                                  for (var locker in lockers) {
-                                    if (locker.lockerId ==
-                                        int.tryParse(_iDController.text)) {
-                                      isValid = false;
-                                      break;
-                                    }
-                                  }
-                                  if (isValid) {
-                                    await apiService.addLocker(Locker(
-                                      lockerId:
-                                          int.tryParse(_iDController.text),
-                                      location: _locationController.text,
-                                      numOfCells:
-                                          int.tryParse(_nocController.text),
-                                      reservationMode:
-                                          int.tryParse(_resMController.text),
-                                      id: _IDController.text,
-                                    ));
-                                    Navigator.of(context)
-                                        .pop(); // Close the dialog after adding
-                                  } else {
-                                    // Show a message that locker ID is not unique
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              AppLocalizations.of(context)!
-                                                  .lockerIdNotUnique)),
-                                    );
-                                  }
-                                },
-                                child: Text(
-                                    AppLocalizations.of(context)!.addLocker),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text(AppLocalizations.of(context)!.close),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
+              showAddLockerDialog(
+                  context,
+                  inputWidth,
+                  _iDController,
+                  _locationController,
+                  _nocController,
+                  _resMController,
+                  _IDController,
+                  apiService);
             },
-            child: Icon(
-              Icons.add,
-            ),
+            child: Icon(Icons.add),
           ),
         );
       } else {
@@ -786,48 +514,26 @@ class _HomescreenState extends State<Homescreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        width: inputWidth,
-                        child: TextFormField(
-                          controller: _iDController,
-                          decoration: InputDecoration(
-                              labelText:
-                                  AppLocalizations.of(context)!.lockerId),
-                        ),
-                      ),
-                      SizedBox(
-                        width: inputWidth,
-                        child: TextFormField(
-                          controller: _locationController,
-                          decoration: InputDecoration(
-                              labelText:
-                                  AppLocalizations.of(context)!.location),
-                        ),
-                      ),
-                      SizedBox(
-                        width: inputWidth,
-                        child: TextFormField(
-                          controller: _nocController,
-                          decoration: InputDecoration(
-                              labelText:
-                                  AppLocalizations.of(context)!.numberOfCells),
-                        ),
-                      ),
-                      SizedBox(
-                        width: inputWidth,
-                        child: TextFormField(
-                          controller: _resMController,
-                          decoration: InputDecoration(
-                              labelText: AppLocalizations.of(context)!
-                                  .reservationMode),
-                        ),
-                      ),
+                      buildTextFormField(_iDController,
+                          AppLocalizations.of(context)!.lockerId, inputWidth),
+                      buildTextFormField(_locationController,
+                          AppLocalizations.of(context)!.location, inputWidth),
+                      buildTextFormField(
+                          _nocController,
+                          AppLocalizations.of(context)!.numberOfCells,
+                          inputWidth),
+                      buildTextFormField(
+                          _resMController,
+                          AppLocalizations.of(context)!.reservationMode,
+                          inputWidth),
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ElevatedButton(
-                            onPressed: () {
+                          buildElevatedButton(
+                            context,
+                            AppLocalizations.of(context)!.saveLocker,
+                            () {
                               int? lockerId = int.tryParse(_iDController.text);
                               int? numOfCells =
                                   int.tryParse(_nocController.text);
@@ -848,13 +554,15 @@ class _HomescreenState extends State<Homescreen> {
                                   resMode != null &&
                                   id != null) {
                                 apiService.updateLocker(
-                                    id,
-                                    Locker(
-                                        lockerId: lockerId,
-                                        location: _locationController.text,
-                                        numOfCells: numOfCells,
-                                        reservationMode: resMode,
-                                        id: _IDController.text));
+                                  id,
+                                  Locker(
+                                    lockerId: lockerId,
+                                    location: _locationController.text,
+                                    numOfCells: numOfCells,
+                                    reservationMode: resMode,
+                                    id: _IDController.text,
+                                  ),
+                                );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -863,21 +571,17 @@ class _HomescreenState extends State<Homescreen> {
                                 );
                               }
                             },
-                            child: Text(
-                              AppLocalizations.of(context)!.saveLocker,
-                            ),
                           ),
-                          const SizedBox(width: 20),
-                          ElevatedButton(
-                            onPressed: () {
+                          SizedBox(width: 20),
+                          buildElevatedButton(
+                            context,
+                            AppLocalizations.of(context)!.delete,
+                            () {
                               int id = int.tryParse(_IDController.text)!;
                               setState(() {
                                 apiService.deleteLocker(id);
                               });
                             },
-                            child: Text(
-                              AppLocalizations.of(context)!.delete,
-                            ),
                           ),
                         ],
                       ),
@@ -888,9 +592,7 @@ class _HomescreenState extends State<Homescreen> {
                             _lockers = apiService.getLockers();
                           });
                         },
-                        child: Text(
-                          AppLocalizations.of(context)!.scanNetwork,
-                        ),
+                        child: Text(AppLocalizations.of(context)!.scanNetwork),
                       ),
                     ],
                   ),
@@ -914,15 +616,9 @@ class _HomescreenState extends State<Homescreen> {
                           return ListView.builder(
                             itemCount: snapshot.data!.length,
                             itemBuilder: (context, index) {
-                              String? mode;
                               Locker locker = snapshot.data![index];
-                              if (locker.reservationMode == 1) {
-                                mode = "shared";
-                              } else if (locker.reservationMode == 2) {
-                                mode = "pre-assigned";
-                              } else {
-                                mode = "not provided";
-                              }
+                              String mode =
+                                  _getReservationMode(locker.reservationMode);
                               return ListTile(
                                 title: Text(
                                     '${AppLocalizations.of(context)!.lockerId} ${locker.lockerId}'),
@@ -932,11 +628,9 @@ class _HomescreenState extends State<Homescreen> {
                                   children: [
                                     Text(
                                         '${AppLocalizations.of(context)!.numberOfCells}: ${locker.numOfCells}'),
-                                    SizedBox(
-                                      height: 10,
-                                    ),
+                                    SizedBox(height: 10),
                                     Text(
-                                        '${AppLocalizations.of(context)!.reservationMode}: $mode')
+                                        '${AppLocalizations.of(context)!.reservationMode}: $mode'),
                                   ],
                                 ),
                                 onTap: () {
@@ -946,7 +640,7 @@ class _HomescreenState extends State<Homescreen> {
                                         "${locker.location}";
                                     _nocController.text =
                                         "${locker.numOfCells}";
-                                    _resMController.text = mode as String;
+                                    _resMController.text = mode;
                                     _IDController.text = locker.id as String;
                                   });
                                 },
@@ -963,132 +657,42 @@ class _HomescreenState extends State<Homescreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
-              // Show the dialog box
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(AppLocalizations.of(context)!.addLocker),
-                    content: SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.6,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _iDController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .lockerId),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _locationController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .location),
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _nocController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .numberOfCells),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _resMController,
-                                  decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)!
-                                          .reservationMode),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              SizedBox(
-                                width: inputWidth,
-                                child: TextFormField(
-                                  controller: _IDController,
-                                  decoration: InputDecoration(
-                                      labelText:
-                                          AppLocalizations.of(context)!.iD),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  bool isValid = true;
-                                  List<Locker> lockers =
-                                      await apiService.getLockers();
-                                  for (var locker in lockers) {
-                                    if (locker.lockerId ==
-                                        int.tryParse(_iDController.text)) {
-                                      isValid = false;
-                                      break;
-                                    }
-                                  }
-                                  if (isValid) {
-                                    await apiService.addLocker(Locker(
-                                      lockerId:
-                                          int.tryParse(_iDController.text),
-                                      location: _locationController.text,
-                                      numOfCells:
-                                          int.tryParse(_nocController.text),
-                                      reservationMode:
-                                          int.tryParse(_resMController.text),
-                                      id: _IDController.text,
-                                    ));
-                                    Navigator.of(context)
-                                        .pop(); // Close the dialog after adding
-                                  } else {
-                                    // Show a message that locker ID is not unique
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              AppLocalizations.of(context)!
-                                                  .lockerIdNotUnique)),
-                                    );
-                                  }
-                                },
-                                child: Text(
-                                    AppLocalizations.of(context)!.addLocker),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: Text(AppLocalizations.of(context)!.close),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
+              showAddLockerDialog(
+                  context,
+                  inputWidth,
+                  _iDController,
+                  _locationController,
+                  _nocController,
+                  _resMController,
+                  _IDController,
+                  apiService);
             },
-            child: Icon(
-              Icons.add,
-            ),
+            child: Icon(Icons.add),
           ),
         );
       }
+    }
+  }
+
+  String _getReservationMode(int? reservationMode) {
+    switch (reservationMode) {
+      case 1:
+        return "shared";
+      case 2:
+        return "pre-assigned";
+      default:
+        return "not provided";
+    }
+  }
+
+  int? _getReservationModeValue(String mode) {
+    switch (mode.toLowerCase()) {
+      case "shared":
+        return 1;
+      case "pre-assigned":
+        return 2;
+      default:
+        return 0;
     }
   }
 }
