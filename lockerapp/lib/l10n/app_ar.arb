@@ -1,0 +1,14 @@
+{
+  "appTitle": "تطبيق الخزائن",
+  "lockerId": "معرف الخزائن",
+  "iD": "المعرف",
+  "location": "الموقع",
+  "numberOfCells": "عدد الخلايا",
+  "reservationMode": "وضع الحجز",
+  "saveLocker": "حفظ الخزانة",
+  "delete": "حذف",
+  "scanNetwork": "مسح الشبكة",
+  "addLocker": "اضف خزانة",
+  "close": "اغلق",
+  "lockerIdNotUnique": "معرف الخزانة ليس فريدًا"
+}

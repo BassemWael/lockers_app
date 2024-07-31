@@ -1,0 +1,14 @@
+{
+  "appTitle": "Lockers app",
+  "lockerId": "Locker ID",
+  "iD": "ID",
+  "location": "Location",
+  "numberOfCells": "Number of cells",
+  "reservationMode": "Reservation mode",
+  "saveLocker": "Save locker",
+  "delete": "Delete",
+  "scanNetwork": "Scan Network",
+  "addLocker": "Add Locker",
+  "close": "Close",
+  "lockerIdNotUnique": "Locker ID is not unique"
+}
